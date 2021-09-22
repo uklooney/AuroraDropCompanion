@@ -1,6 +1,6 @@
 # AuroraDropCompanion
 
-Windows companion application for AuroDrop
+Windows companion application for AuroraDrop
 https://github.com/uklooney/AuroraDrop
 
 Cureently a very early (near non existant) version.
