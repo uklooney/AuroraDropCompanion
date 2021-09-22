@@ -1,8 +1,8 @@
 # AuroraDropCompanion
 
-Windows companion application for AuroDrop
+Windows companion application for AuroraDrop
 https://github.com/uklooney/AuroraDrop
 
-Cureently in very early (near non existant) version.
-You will need to change the COM port in the source for now, and compile to suit your particular setup. Will fix this soon(ish).
+Cureently a very early (near non existant) version.
+You will need to change the COM port in the source for now, and compile to suit your particular setup. Will fix this if someone cares.
 
