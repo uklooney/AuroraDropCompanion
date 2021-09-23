@@ -23,7 +23,7 @@ namespace AuroraDropCompanion
     {
         // CHANGE THIS TO MATCH COM PORT FOR ESP32 ON YOUR PC
 
-        private const string COM_PORT = "COM12";
+        private const string COM_PORT = "COM11";  
 
         // THIS IS SOME BUTCHERED TOGHTER CODE TO GET US STARTED
 
@@ -109,7 +109,7 @@ namespace AuroraDropCompanion
                     Debug.WriteLine(port);
                 }
             }
-
+            textboxComPort.Text = COM_PORT;
 
             CreateLeds();
 
@@ -184,7 +184,7 @@ namespace AuroraDropCompanion
                 try
                 {
                     // open com port using standard ASCII protocol (characters 0-127 only)
-                    port = new SerialPort(COM_PORT, 115200, Parity.None, 8, StopBits.One);
+                    port = new SerialPort(textboxComPort.Text, 115200, Parity.None, 8, StopBits.One);
                     port.Encoding = System.Text.Encoding.UTF8;  // was ASCII
                     port.ReadTimeout = 10;
                     port.Open();
