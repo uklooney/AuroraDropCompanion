@@ -5,6 +5,8 @@ using NAudio.Wave;
 using System;
 using System.Diagnostics;
 using System.IO.Ports;
+using System.Net;
+using System.Net.Sockets;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -23,7 +25,9 @@ namespace AuroraDropCompanion
     {
         // CHANGE THIS TO MATCH COM PORT FOR ESP32 ON YOUR PC
 
-        private const string COM_PORT = "COM11";  
+        private const string COM_PORT = "COM12";        // set here com port of your esp
+        private const string ESP32_IP = "127.0.0.1";    // or change this to ip address of your esp32 (slow at the moment?)
+        private const int ESP32_PORT = 1234;
 
         // THIS IS SOME BUTCHERED TOGHTER CODE TO GET US STARTED
 
@@ -87,6 +91,11 @@ namespace AuroraDropCompanion
         PerformanceCounter pc1 = new PerformanceCounter();
         PerformanceCounter pf1 = new PerformanceCounter();
 
+        Socket clientSocket;
+        IPEndPoint endPoint;
+        int UdpSendCount = 0;
+
+
         public MainWindow()
         {
             InitializeComponent();
@@ -110,6 +119,8 @@ namespace AuroraDropCompanion
                 }
             }
             textboxComPort.Text = COM_PORT;
+            textboxIpAddress.Text = ESP32_IP;
+            textboxPort.Text = ESP32_PORT.ToString();
 
             CreateLeds();
 
@@ -124,13 +135,30 @@ namespace AuroraDropCompanion
             timerLedMatrix.Interval = new TimeSpan(0, 0, 0, 0, (1000 / 25));  // 25
             timerLedMatrix.Start();
 
+            // setup
+            if (ESP32_IP != "127.0.0.1")
+            {
+                clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                IPAddress clientAddr = IPAddress.Parse(ESP32_IP);
+                endPoint = new IPEndPoint(clientAddr, ESP32_PORT);
+            }
+
+
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            // close open serial port
             if (portOpen)
             {
                 //port.Close();
+            }
+
+            // close open network socket
+            if (ESP32_IP != "127.0.0.1")
+            {
+                clientSocket.Close();
+                clientSocket.Dispose();
             }
         }
 
@@ -456,6 +484,16 @@ namespace AuroraDropCompanion
                         dataBlock[i+7] = _bytes[i];
                     }
                     port.Write(dataBlock, 0, dataBlock.Length);
+
+                    // send network data too, but slower 10 packets per second. bugs out if any faster as packets arrive from ESP libray in chunks instead of individually.
+                    if (ESP32_IP != "127.0.0.1")
+                    {
+                        if (UdpSendCount == 0) clientSocket.SendTo(dataBlock, endPoint);
+                        UdpSendCount++;
+                        if (UdpSendCount > 1) UdpSendCount = 0;
+                    }
+
+
                     return true;
                 }
                 catch (Exception ex)
