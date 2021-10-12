@@ -26,7 +26,7 @@ namespace AuroraDropCompanion
         // CHANGE THIS TO MATCH COM PORT FOR ESP32 ON YOUR PC
 
         private const string COM_PORT = "COM12";        // set here com port of your esp
-        private const string ESP32_IP = "192.168.1.112";    // or change this to ip address of your esp32 (slow at the moment?)
+        private const string ESP32_IP = "127.0.0.1";    // or change this to ip address of your esp32 (slow at the moment?)
         private const int ESP32_PORT = 1234;
 
         // THIS IS SOME BUTCHERED TOGETER CODE TO GET US STARTED
