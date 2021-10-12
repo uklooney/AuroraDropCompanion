@@ -26,15 +26,19 @@ namespace AuroraDropCompanion
         // CHANGE THIS TO MATCH COM PORT FOR ESP32 ON YOUR PC
 
         private const string COM_PORT = "COM12";        // set here com port of your esp
-        private const string ESP32_IP = "127.0.0.1";    // or change this to ip address of your esp32 (slow at the moment?)
+        private const string ESP32_IP = "192.168.1.112";    // or change this to ip address of your esp32 (slow at the moment?)
         private const int ESP32_PORT = 1234;
 
-        // THIS IS SOME BUTCHERED TOGHTER CODE TO GET US STARTED
-
+        // THIS IS SOME BUTCHERED TOGETER CODE TO GET US STARTED
 
         // leave all these alone for now
-        private const int NUM_COLS = 8 * 12;  // either 4 or 12 8x8 panels 
+        //private const int NUM_COLS = 8 * 12;  // either 4 or 12 8x8 panels 
+        //private const int NUM_ROWS = 8;
+        private const int NUM_COLS = 8 * 16;  // either 4 or 12 or 16 8x8 panels  (use 8 * 16 = 128, for 64/128 wide matrices) 
         private const int NUM_ROWS = 8;
+
+
+
         private const int FTT_SIZE = 2048;
 
 
@@ -463,7 +467,6 @@ namespace AuroraDropCompanion
         }
 
 
-
         private bool SendDataBlock(byte _type, byte[] _bytes)
         {
             if (_bytes.Length > 255) return true;  // ignore if too much data
@@ -490,7 +493,7 @@ namespace AuroraDropCompanion
                     {
                         if (UdpSendCount == 0) clientSocket.SendTo(dataBlock, endPoint);
                         UdpSendCount++;
-                        if (UdpSendCount > 1) UdpSendCount = 0;
+                        if (UdpSendCount > 2) UdpSendCount = 0;
                     }
 
 

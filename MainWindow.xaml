@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AuroraDropCompanion"
         mc:Ignorable="d"
-        Title="AuroraDrop Companion - alpha 0.0.02a" Height="195" Width="1014" Loaded="Window_Loaded" Closing="Window_Closing" Unloaded="Window_Unloaded" Closed="Window_Closed" ResizeMode="CanMinimize" WindowState="Normal" Icon="/Resources/icon.ico" >
+        Title="AuroraDrop Companion - alpha 0.0.03a" Height="195" Width="1334" Loaded="Window_Loaded" Closing="Window_Closing" Unloaded="Window_Unloaded" Closed="Window_Closed" ResizeMode="CanMinimize" WindowState="Normal" Icon="/Resources/icon.ico" >
     <Grid Background="Black">
         <Canvas x:Name="AuroraDropCanvas" Margin="10,10,10,0" Background="Black" VerticalAlignment="Top" Height="100">
 
@@ -16,7 +16,7 @@
         <TextBox x:Name="textboxComPort" HorizontalAlignment="Left" Margin="930,129,0,0" Text="COMxx" TextWrapping="Wrap" VerticalAlignment="Top" Width="60"/>
         <TextBox x:Name="textboxIpAddress" HorizontalAlignment="Left" Margin="730,129,0,0" Text="127.0.0.x" TextWrapping="Wrap" VerticalAlignment="Top" Width="90"/>
         <TextBox x:Name="textboxPort" HorizontalAlignment="Left" Margin="830,129,0,0" Text="1234" TextWrapping="Wrap" VerticalAlignment="Top" Width="40"/>
-        <Label x:Name="labelGain" Content="Ovarall Gain" HorizontalAlignment="Left" Margin="11,104,0,0" VerticalAlignment="Top" Foreground="White"/>
+        <Label x:Name="labelGain" Content="Overall Gain" HorizontalAlignment="Left" Margin="11,104,0,0" VerticalAlignment="Top" Foreground="White"/>
         <Label x:Name="labelHiGain" Content="Hi End Gain" HorizontalAlignment="Left" Margin="99,104,0,0" VerticalAlignment="Top" Foreground="White"/>
 
     </Grid>
