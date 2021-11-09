@@ -5,19 +5,21 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AuroraDropCompanion"
         mc:Ignorable="d"
-        Title="AuroraDrop Companion - alpha 0.0.03a" Height="195" Width="1334" Loaded="Window_Loaded" Closing="Window_Closing" Unloaded="Window_Unloaded" Closed="Window_Closed" ResizeMode="CanMinimize" WindowState="Normal" Icon="/Resources/icon.ico" >
+        Title="AuroraDrop Companion - alpha 0.0.04a" Height="152" Width="800" Loaded="Window_Loaded" Closing="Window_Closing" Unloaded="Window_Unloaded" Closed="Window_Closed" ResizeMode="CanMinimize" WindowState="Normal" Icon="/Resources/icon.ico" >
     <Grid Background="Black">
-        <Canvas x:Name="AuroraDropCanvas" Margin="10,10,10,0" Background="Black" VerticalAlignment="Top" Height="100">
+
+        <Canvas x:Name="AuroraDropCanvas" Margin="5,5,53,0" Background="Black" VerticalAlignment="Top" Height="65">
 
 
         </Canvas>
-        <Slider x:Name="sliderGain" HorizontalAlignment="Left" Margin="14,128,0,0" VerticalAlignment="Top" Width="74" Maximum="5000" Minimum="1" SmallChange="100" LargeChange="100" Value="1000"/>
-        <Slider x:Name="sliderHiRise" HorizontalAlignment="Left" Margin="99,128,0,0" VerticalAlignment="Top" Width="74" Maximum="3" Minimum="0" SmallChange="0.1" LargeChange="0.5" Value="1"/>
-        <TextBox x:Name="textboxComPort" HorizontalAlignment="Left" Margin="930,129,0,0" Text="COMxx" TextWrapping="Wrap" VerticalAlignment="Top" Width="60"/>
-        <TextBox x:Name="textboxIpAddress" HorizontalAlignment="Left" Margin="730,129,0,0" Text="127.0.0.x" TextWrapping="Wrap" VerticalAlignment="Top" Width="90"/>
-        <TextBox x:Name="textboxPort" HorizontalAlignment="Left" Margin="830,129,0,0" Text="1234" TextWrapping="Wrap" VerticalAlignment="Top" Width="40"/>
-        <Label x:Name="labelGain" Content="Overall Gain" HorizontalAlignment="Left" Margin="11,104,0,0" VerticalAlignment="Top" Foreground="White"/>
-        <Label x:Name="labelHiGain" Content="Hi End Gain" HorizontalAlignment="Left" Margin="99,104,0,0" VerticalAlignment="Top" Foreground="White"/>
+        <Slider x:Name="sliderGain" HorizontalAlignment="Left" Margin="14,88,0,0" VerticalAlignment="Top" Width="74" Maximum="5000" Minimum="1" SmallChange="100" LargeChange="100" Value="1000"/>
+        <Slider x:Name="sliderHiRise" HorizontalAlignment="Left" Margin="99,88,0,0" VerticalAlignment="Top" Width="74" Maximum="3" Minimum="0" SmallChange="0.1" LargeChange="0.5" Value="1"/>
+        <Label x:Name="labelGain" Content="Overall Gain" HorizontalAlignment="Left" Margin="11,58,0,0" VerticalAlignment="Top" Foreground="White"/>
+        <Label x:Name="labelHiGain" Content="Hi End Gain" HorizontalAlignment="Left" Margin="99,58,0,0" VerticalAlignment="Top" Foreground="White"/>
+        <Label x:Name="labelStatus0" Content="Starting..." HorizontalAlignment="Left" Margin="200,58,0,0" VerticalAlignment="Top" Foreground="White"/>
+        <Label x:Name="labelStatus1" Content="Starting..." HorizontalAlignment="Left" Margin="200,76,0,0" VerticalAlignment="Top" Foreground="White"/>
+        <Label x:Name="labelStatus2" Content="Starting..." HorizontalAlignment="Left" Margin="500,58,0,0" VerticalAlignment="Top" Foreground="White" Grid.Column="1"/>
+        <Label x:Name="labelStatus3" Content="Starting..." HorizontalAlignment="Left" Margin="500,76,0,0" VerticalAlignment="Top" Foreground="White" Grid.Column="1"/>
 
     </Grid>
 </Window>

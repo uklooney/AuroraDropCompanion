@@ -4,9 +4,6 @@ using NAudio.Dsp;
 using NAudio.Wave;
 using System;
 using System.Diagnostics;
-using System.IO.Ports;
-using System.Net;
-using System.Net.Sockets;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -23,21 +20,11 @@ namespace AuroraDropCompanion
     /// </summary>
     public partial class MainWindow : Window
     {
-        // CHANGE THIS TO MATCH COM PORT FOR ESP32 ON YOUR PC
 
-        private const string COM_PORT = "COM12";        // set here com port of your esp
-        private const string ESP32_IP = "127.0.0.1";    // or change this to ip address of your esp32 (slow at the moment?)
-        private const int ESP32_PORT = 1234;
 
-        // THIS IS SOME BUTCHERED TOGETER CODE TO GET US STARTED
-
-        // leave all these alone for now
-        //private const int NUM_COLS = 8 * 12;  // either 4 or 12 8x8 panels 
-        //private const int NUM_ROWS = 8;
-        private const int NUM_COLS = 8 * 16;  // either 4 or 12 or 16 8x8 panels  (use 8 * 16 = 128, for 64/128 wide matrices) 
+        private const int NUM_BINS_AURORA = 128;  // either 4 or 12 or 16 8x8 panels  (use 8 * 16 = 128, for 64/128 wide matrices) 
+        private const int NUM_BINS_LEDBAR = 96;
         private const int NUM_ROWS = 8;
-
-
 
         private const int FTT_SIZE = 2048;
 
@@ -46,10 +33,6 @@ namespace AuroraDropCompanion
         private const int SAMPLE_SIZE_FLOAT_STEREO = FTT_SIZE * 2;  // 4096
         private const int SAMPLE_SIZE_FLOAT_MONO = FTT_SIZE;    // 2048
         private const int BUFFER_SIZE_BYTES_32BIT_STEREO = SAMPLE_SIZE_BYTES_32BIT_STEREO * 12;    // TODO: should be longer, and skip frames
-        private const int TIMER_MANAGEMENT = 500;
-
-        private const int SERIAL_MSG_AUDIO_SPECTRUM = 65;
-        private const int SERIAL_MSG_BITMAP = 66;
 
         private int currentBufferSize = BUFFER_SIZE_BYTES_32BIT_STEREO;
         private int currentSampleSize = SAMPLE_SIZE_BYTES_32BIT_STEREO;
@@ -67,38 +50,23 @@ namespace AuroraDropCompanion
         private float[] fftRight = new float[SAMPLE_SIZE_FLOAT_MONO];
 
 
-        private Ellipse [,] ellipseLed = new Ellipse[NUM_COLS, NUM_ROWS];
+        private Ellipse [,] ellipseLed = new Ellipse[NUM_BINS_AURORA, NUM_ROWS];
 
 
-        private double[] barData = new double[NUM_COLS];
-        private byte[] barDataNew = new byte[NUM_COLS];
+        private double[] barData = new double[NUM_BINS_AURORA];
+        private byte[] tcpData = new byte[NUM_BINS_AURORA];
 
 
         private DispatcherTimer timerSample = new DispatcherTimer();
-        private DispatcherTimer timerManagement = new DispatcherTimer();
-        private DispatcherTimer timerLedMatrix = new DispatcherTimer();
         private WasapiLoopbackCapture audioCaptureLoopback = new WasapiLoopbackCapture();
         private BufferedWaveProvider bufferedWaveProvider;
         private int retryCount = 0;
 
         private double overallPeak = 0;
 
-        private bool portOpen = false;
-
-        private SerialPort port;
-
         SolidColorBrush colorGrey = new SolidColorBrush(Color.FromArgb(255, (byte)50, (byte)50, (byte)50));
         SolidColorBrush colorOutline = new SolidColorBrush(Color.FromArgb(255, (byte)200, (byte)0, (byte)0));
         SolidColorBrush colorCenter = Brushes.Red;
-
-        PerformanceCounter[] pc = new PerformanceCounter[32];
-        PerformanceCounter pc1 = new PerformanceCounter();
-        PerformanceCounter pf1 = new PerformanceCounter();
-
-        Socket clientSocket;
-        IPEndPoint endPoint;
-        int UdpSendCount = 0;
-
 
         public MainWindow()
         {
@@ -106,25 +74,9 @@ namespace AuroraDropCompanion
             SystemEvents.SessionEnding += new SessionEndingEventHandler(SystemEvents_SessionEnding);
         }
 
-
-
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
 
-            // Get a list of serial port names, skip for now
-            if (null != null)
-            {
-                string[] ports = SerialPort.GetPortNames();
-                Debug.WriteLine("The following serial ports were found:");
-                // Display each port name to the console.
-                foreach (string port in ports)
-                {
-                    Debug.WriteLine(port);
-                }
-            }
-            textboxComPort.Text = COM_PORT;
-            textboxIpAddress.Text = ESP32_IP;
-            textboxPort.Text = ESP32_PORT.ToString();
 
             CreateLeds();
 
@@ -133,45 +85,19 @@ namespace AuroraDropCompanion
             timerSample.Tick += new EventHandler(SampleTimer_Tick);
             timerSample.Interval = new TimeSpan(0, 0, 0, 0, (1000/25));  // 25fps
             timerSample.Start();
-
-            timerLedMatrix = new DispatcherTimer(DispatcherPriority.Send);  // highest priority
-            timerLedMatrix.Tick += new EventHandler(CommsTimer_Tick);
-            timerLedMatrix.Interval = new TimeSpan(0, 0, 0, 0, (1000 / 25));  // 25
-            timerLedMatrix.Start();
-
-            // setup
-            if (ESP32_IP != "127.0.0.1")
-            {
-                clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                IPAddress clientAddr = IPAddress.Parse(ESP32_IP);
-                endPoint = new IPEndPoint(clientAddr, ESP32_PORT);
-            }
-
-
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            // close open serial port
-            if (portOpen)
-            {
-                //port.Close();
-            }
-
             // close open network socket
-            if (ESP32_IP != "127.0.0.1")
-            {
-                clientSocket.Close();
-                clientSocket.Dispose();
-            }
+
+
         }
 
         private void Window_Closed(object sender, EventArgs e)
         {
             //if (mutex != null) mutex.ReleaseMutex();
             timerSample.Stop();
-            timerLedMatrix.Stop();
-            timerManagement.Stop();
             if (audioCaptureLoopback.CaptureState == CaptureState.Capturing) audioCaptureLoopback.StopRecording();
             System.Windows.Application.Current.Shutdown();    // closes settings too, if open
         }
@@ -180,73 +106,8 @@ namespace AuroraDropCompanion
         {
             //if (mutex != null) mutex.ReleaseMutex();
             timerSample.Stop();
-            timerLedMatrix.Stop();
-            timerManagement.Stop();
             if (audioCaptureLoopback.CaptureState == CaptureState.Capturing) audioCaptureLoopback.StopRecording();
             System.Windows.Application.Current.Shutdown();    // closes settings too, if open
-        }
-
-        private void CommsTimer_Tick(object sender, EventArgs e)
-        {
-            if (!portOpen) OpenPort();
-            if (!portOpen) return;
-
-            try
-            {
-                byte[] by = new byte[NUM_COLS];
-                for (int i = 0; i < NUM_COLS; i++)
-                {
-                    by[i] = barDataNew[i];
-                }
-                portOpen = SendDataBlock(SERIAL_MSG_AUDIO_SPECTRUM, by);
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("Error");
-                Debug.WriteLine(ex.StackTrace);
-                portOpen = false;
-            }
-        }
-
-        private bool OpenPort()
-        {
-            if (retryCount == 0)
-            {
-                try
-                {
-                    // open com port using standard ASCII protocol (characters 0-127 only)
-                    port = new SerialPort(textboxComPort.Text, 115200, Parity.None, 8, StopBits.One);
-                    port.Encoding = System.Text.Encoding.UTF8;  // was ASCII
-                    port.ReadTimeout = 10;
-                    port.Open();
-                    port.DataReceived += new SerialDataReceivedEventHandler(port_DataReceived);
-                    portOpen = true;
-                    Debug.WriteLine("Port Open");
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    portOpen = false;
-                    retryCount = 20;
-                    return false;
-                }
-
-            } else
-            {
-                retryCount--;
-                return false;
-            }
-        }
-
-        private void port_DataReceived(object sender, SerialDataReceivedEventArgs e)
-        {
-            // just print all the incoming data in the port's buffer
-            // nothing being sent from arduino as of now
-            if (port.IsOpen)
-            {
-                Debug.WriteLine(port.ReadExisting());
-            }
         }
 
         private void SampleTimer_Tick(object sender, EventArgs e)
@@ -264,35 +125,31 @@ namespace AuroraDropCompanion
                     BufferLength = currentBufferSize,
                     DiscardOnBufferOverflow = true
                 };
-                Console.WriteLine("=================================");
-                Console.WriteLine("Starting WASAPI Loopback Recording");
-                Console.WriteLine("WASAPI Loopback SampleRate: {0}", audioCaptureLoopback.WaveFormat.SampleRate);
-                Console.WriteLine("WASAPI Loopback Channels: {0}", audioCaptureLoopback.WaveFormat.Channels);
-                Console.WriteLine("WASAPI Loopback BitsPerSample: {0}", audioCaptureLoopback.WaveFormat.BitsPerSample);
-                Console.WriteLine("WASAPI Loopback Encoding: {0}", audioCaptureLoopback.WaveFormat.Encoding);
+                Debug.WriteLine("=================================");
+                Debug.WriteLine("Starting WASAPI Loopback Recording");
+                Debug.WriteLine("WASAPI Loopback SampleRate: {0}", audioCaptureLoopback.WaveFormat.SampleRate);
+                Debug.WriteLine("WASAPI Loopback Channels: {0}", audioCaptureLoopback.WaveFormat.Channels);
+                Debug.WriteLine("WASAPI Loopback BitsPerSample: {0}", audioCaptureLoopback.WaveFormat.BitsPerSample);
+                Debug.WriteLine("WASAPI Loopback Encoding: {0}", audioCaptureLoopback.WaveFormat.Encoding);
                 audioCaptureLoopback.StartRecording();
                 return;
             }
 
-            Console.WriteLine("========================================================");
-            Console.WriteLine("START: Bytes in the buffer: {0}", bufferedWaveProvider.BufferedBytes);
+            //Debug.WriteLine("========================================================");
+            //Debug.WriteLine("START: Bytes in the buffer: {0}", bufferedWaveProvider.BufferedBytes);
             var audioStereoFloatInterlaced = new float[SAMPLE_SIZE_FLOAT_STEREO];  // // this is initialised every time to provide silence if required
-            SavedVar.bufferSize = bufferedWaveProvider.BufferedBytes;
             if ((bufferedWaveProvider.BufferedBytes >= currentSampleSize) || (audioBufferEmptyCount > 4))
             {
                 audioBufferEmptyCount = 0;
                 if (bufferedWaveProvider.BufferedBytes >= currentSampleSize)
                 // copy and process the sample if we have enough data in the buffer
                 {
-                    // if the buffer is getiing to large, dump the older sample data
+                    // if the buffer is getting too large, dump the older sample data
                     do
                     {
-                        Console.WriteLine("LOOP: Bytes in the buffer: {0}", bufferedWaveProvider.BufferedBytes);
+                        //Debug.WriteLine("LOOP: Bytes in the buffer: {0}", bufferedWaveProvider.BufferedBytes);
                         bufferedWaveProvider.Read(audioBytes32Bit, 0, currentSampleSize);
                     } while (bufferedWaveProvider.BufferedBytes > SAMPLE_SIZE_FLOAT_STEREO * 2);
-
-                    SavedVar.frameCount = SavedVar.frameCount + (1000 / TIMER_MANAGEMENT);
-
 
                     // block copy byte data to float array, we default at IeeeFloat
                     Buffer.BlockCopy(audioBytes32Bit, 0, audioStereoFloatInterlaced, 0, currentSampleSize);
@@ -301,7 +158,7 @@ namespace AuroraDropCompanion
                 // we have seen the audio buffer empty more than 4 times in a row, pass the empty array (silence) to be analysed
                 {
                     if (bufferedWaveProvider.BufferedBytes > 0) bufferedWaveProvider.ClearBuffer();
-                    //Console.WriteLine("SAMPLE TIMER: Passing Silence: Got {0} bytes, need {1} bytes.", bufferedBytes, currentSampleSize);   
+                    //Debug.WriteLine("SAMPLE TIMER: Passing Silence: Got {0} bytes, need {1} bytes.", bufferedBytes, currentSampleSize);   
                 }
 
                 // split stereo float data into two and also combine for a third mono channel
@@ -319,12 +176,18 @@ namespace AuroraDropCompanion
                 barData = GenerateBarDataMono(fftMono);
                 // populate array of bytes, one for each column, holding a value between 0 -> 127/8
                 double rampRate = 1;
-                barDataNew = GenerateBarDataMonoNew(barData, sliderGain.Value, sliderHiRise.Value);   // gain = 50
 
+
+                tcpData = GenerateBarDataMonoNew(barData, sliderGain.Value, sliderHiRise.Value);   // gain = 50
+
+                // testing tcp server comms
+                //App.newFftDataXXX = GenerateBarDataMonoNew(barData, sliderGain.Value, sliderHiRise.Value);   // gain = 50
+                App.fftDataMono128 = tcpData;
+                App.newFftData = true;
 
 
                 // generate led matrix bars
-                for (int i = 0; i < NUM_COLS; i++)
+                for (int i = 0; i < NUM_BINS_AURORA; i++)
                 {
                     // transpose 0.0 -> 1.0 to 0 -> 8
                     double val = barData[i] * 80;
@@ -336,12 +199,18 @@ namespace AuroraDropCompanion
 
                 }
 
+                labelStatus0.Content = App.tcpConnectStatus[0];
+                labelStatus1.Content = App.tcpConnectStatus[1];
+
+                labelStatus2.Content = App.comConnectStatus[0];
+                labelStatus3.Content = App.comConnectStatus[1];
+
             }
             else
             {
                 // don't do anything if we don't have enough data to process
                 audioBufferEmptyCount++;
-                //Console.WriteLine("SAMPLE TIMER: Not enough sample data to process: Got {0} bytes, need {1} bytes.", bufferedBytes, SAMPLE_SIZE);   
+                //Debug.WriteLine("SAMPLE TIMER: Not enough sample data to process: Got {0} bytes, need {1} bytes.", bufferedBytes, SAMPLE_SIZE);   
             }
 
 
@@ -351,7 +220,7 @@ namespace AuroraDropCompanion
         private void AudioDataAvailable(object sender, WaveInEventArgs e)
         {
             bufferedWaveProvider.AddSamples(e.Buffer, 0, e.BytesRecorded);
-            //Console.WriteLine("Audio Data Available: {0}", e.BytesRecorded);
+            //Debug.WriteLine("Audio Data Available: {0}", e.BytesRecorded);
         }
 
         private void StoppedRecordingLoopbackAudio(object sender, StoppedEventArgs e)
@@ -381,14 +250,14 @@ namespace AuroraDropCompanion
 
         private double[] GenerateBarDataMono(float[] data)
         {
-            double[] _output = new double[NUM_COLS];
+            double[] _output = new double[NUM_BINS_AURORA];
             double y = 0;
             int b0 = 0;
             // parse the fft data into visible mono bars
-            for (int x = 0; x < (NUM_COLS); x++)
+            for (int x = 0; x < (NUM_BINS_AURORA); x++)
             {
                 double _peak = 0.0;
-                int b1 = (int)Math.Pow(2.0, (x * 9.3 / (NUM_COLS - 1)));
+                int b1 = (int)Math.Pow(2.0, (x * 9.3 / (NUM_BINS_AURORA - 1)));
                 //int b1 = (int)Math.Pow(2.0, (x * 10.0 / (visibleBarCount - 1)));
                 if (b1 > SAMPLE_SIZE_FLOAT_MONO - 1) b1 = SAMPLE_SIZE_FLOAT_MONO - 1;
                 if (b1 <= b0) b1 = b0 + 1;
@@ -406,7 +275,7 @@ namespace AuroraDropCompanion
                 _output[x] = y;
             }
             return _output;
-            //Console.WriteLine("Overall Peak: {0}", overallPeak);
+            //Debug.WriteLine("Overall Peak: {0}", overallPeak);
         }
 
         private byte[] GenerateBarDataMonoNew(double[] _data, double _gain, double _ramp)
@@ -426,90 +295,25 @@ namespace AuroraDropCompanion
         {
             Brush _barCol = Brushes.Gray;
             Brush _colourLedOn = Brushes.Red;
-            for (int x = 0; x < NUM_COLS; x++)
+            for (int x = 0; x < NUM_BINS_AURORA; x++)
             {
                 for (int y = 0; y < NUM_ROWS; y++)
                 {
 
-                    ellipseLed[x, y] = new Ellipse() { Width = 8, Height = 8, StrokeThickness = 0, IsHitTestVisible = false, Visibility = Visibility.Visible };
+                    ellipseLed[x, y] = new Ellipse() { Width = 4, Height = 4, StrokeThickness = 0, IsHitTestVisible = false, Visibility = Visibility.Visible };
                     ellipseLed[x, y].Stroke = new SolidColorBrush(Color.FromArgb(255, (byte)255, (byte)0, (byte)0));
                     ellipseLed[x, y].Fill = _barCol;
-                    ellipseLed[x, y].Width = 8;
-                    ellipseLed[x, y].Height = 8;
+                    ellipseLed[x, y].Width = 4;
+                    ellipseLed[x, y].Height = 4;
                     ellipseLed[x, y].StrokeThickness = 2;
-                    Canvas.SetTop(ellipseLed[x, y], (y * 10) + 10);
-                    Canvas.SetLeft(ellipseLed[x, y], (x * 10) + 10);
+                    Canvas.SetTop(ellipseLed[x, y], (y * 6) + 6);
+                    Canvas.SetLeft(ellipseLed[x, y], (x * 6) + 6);
                     AuroraDropCanvas.Children.Add(ellipseLed[x, y]);
                 }
 
 
             }
         }
-
-
-        private bool SendDataStr(string _str)
-        {
-            if (portOpen)
-            {
-                try
-                {
-                    port.WriteLine(_str + (char)0);
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    port.Close();
-                    return false;
-                }
-            }
-            port.Close();
-            return false;
-        }
-
-
-        private bool SendDataBlock(byte _type, byte[] _bytes)
-        {
-            if (_bytes.Length > 255) return true;  // ignore if too much data
-            if (portOpen)
-            {
-                try
-                {
-                    byte[] dataBlock = new byte[_bytes.Length + 7];  // message length + 7 preamble bytes
-                    dataBlock[0] = 69;   // preamble
-                    dataBlock[1] = 96;
-                    dataBlock[2] = 69;
-                    dataBlock[3] = 96;
-                    dataBlock[4] = 0;    // always 0
-                    dataBlock[5] = _type;   // char A (65) indicates audio spectrum data?
-                    dataBlock[6] = (byte)_bytes.Length;
-                    for (int i=0; i < _bytes.Length; i++)
-                    {
-                        dataBlock[i+7] = _bytes[i];
-                    }
-                    port.Write(dataBlock, 0, dataBlock.Length);
-
-                    // send network data too, but slower 10 packets per second. bugs out if any faster as packets arrive from ESP libray in chunks instead of individually.
-                    if (ESP32_IP != "127.0.0.1")
-                    {
-                        if (UdpSendCount == 0) clientSocket.SendTo(dataBlock, endPoint);
-                        UdpSendCount++;
-                        if (UdpSendCount > 2) UdpSendCount = 0;
-                    }
-
-
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex.StackTrace);
-                    port.Close();
-                    return false;
-                }
-            }
-            port.Close();
-            return false;
-        }
-
 
 
 
@@ -523,17 +327,8 @@ namespace AuroraDropCompanion
                     break;
                 case SessionEndReasons.SystemShutdown:
                     //MessageBox.Show("The operating system is shutting down.");
-                    if (portOpen)
-                    {
-                        // portOpen = SendDataBlock(SERIAL_MSG_SHUTTING_DOWN, new byte[] { 0 });
-
-                    }
                     break;
                 default:
-                    if (portOpen)
-                    {
-                        //portOpen = SendDataBlock(SERIAL_MSG_SHUTTING_DOWN, new byte[] { 0 });
-                    }
                     break;
             }
         }
